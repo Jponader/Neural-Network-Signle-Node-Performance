@@ -1,0 +1,25 @@
+----0----
+Local Min: 0.9961
+Local Count: 100352
+Local Diff: 24418
+Local Avg: 0.9999434251434564
+----1----
+Local Min: 0.9942
+Local Count: 128
+Local Diff: 90
+Local Avg: 0.9992148437499995
+----2----
+Local Min: 0.9614
+Local Count: 1280
+Local Diff: 1280
+Local Avg: 0.9972718749999909
+----3----
+Local Min: 0.9892
+Local Count: 10
+Local Diff: 10
+Local Avg: 0.99519
+----GLOBAL----
+Global Min: 0.9614
+Global Count: 101770
+Global Diff: 25798
+Global Avg: 0.9999084406013552
