@@ -3,6 +3,7 @@ import numpy as np
 import sys
 import h5py
 
+expected_val = float(sys.argv[1])
 
 global_min = 1
 global_diff = 0
@@ -31,7 +32,7 @@ def tester(result):
 	global_avg = global_avg + result
 	local_avg = local_avg + result
 
-	if result != 1:
+	if result != expected_val:
 		global_diff = global_diff + 1
 		local_diff = local_diff + 1
 
@@ -68,11 +69,11 @@ def printGlobal():
 	print("Global Diff: " + str(global_diff))
 	print("Global Avg: " + str(global_avg/global_count))
 
-if len(sys.argv) != 2:
-	print("Improper Input: python3 h5Analysis.py <input_file>")
+if len(sys.argv) != 3:
+	print("Improper Input: python3 h5Analysis.py <accrucy> <input_file>")
 	sys.exit()
 
-path_to_file = sys.argv[1]
+path_to_file = sys.argv[2]
 
 fh5 = h5py.File(path_to_file, 'r')
 for Groups in fh5:

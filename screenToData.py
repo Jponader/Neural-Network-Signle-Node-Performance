@@ -11,6 +11,7 @@ input_file = sys.argv[1]
 output = sys.argv[2]
 
 fh5 = h5py.File(output, 'w')
+fh5 = fh5.create_group("Group")
 
 dataStore = []
 layer = 0
@@ -30,7 +31,11 @@ while line:
 		line = fp.readline()
 		continue
 
-	print(line)
-	d_line = float(line[:-1])
-	dataStore.append(d_line)
+	if line[0] == 'c':
+		print(line)
+		d_line = float(line[3:-1])
+		dataStore.append(d_line)
+		line = fp.readline()
+		continue
+
 	line = fp.readline()

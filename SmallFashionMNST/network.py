@@ -11,6 +11,8 @@ import matplotlib.pyplot as plt
 
 import time
 
+test_length = 10000
+
 # Saving Checkpoints while training
 import os
 checkpoint_path = "training_1/cp-{epoch:04d}.ckpt"
@@ -84,31 +86,27 @@ model.save('model.h5')
 # modelNew = keras.models.load_model('model.h5')
 
 imgs = test_images
-#labels = test_labels
+labels = test_labels
 
 def top_k_accuracy(y_true, y_pred, k=1):
     argsorted_y = np.argsort(y_pred)[:,-k:]
-    #print(argsorted_y.T)
-    #print(y_true.argmax(axis=1))
     return np.any(argsorted_y.T == y_true, axis=0).mean()
 
 
 def evaluate():
-	pred = model.predict(imgs, verbose = 1)
-	acc1L = top_k_accuracy(labels, pred)
+	pred = model.predict(imgs[:test_length], verbose = 1)
+	acc1L = top_k_accuracy(labels[:test_length], pred,1)
+	acc5L = top_k_accuracy(labels[:test_length], pred,5)
 	print(acc1L)
-	return acc1L
+	print(acc5L)
+	return acc1L,acc5L
 
+global_acc1, global_acc5 = evaluate()
 
-pred = model.predict(imgs, verbose = 1)
-argsorted_y = np.argsort(pred)[:,-1:]
-labels = argsorted_y.T
-
-
-# Tester
-global_acc1 = 1.0
 diff1 = 0
+diff5 = 0
 avg1 = 0.00
+avg5 = 0.00
 test_avg = 0.00
 count = 0
 
@@ -121,20 +119,24 @@ def tester():
 	global test_avg
 
 	timer = time.time()
-	acc1 = evaluate()
+	acc1, acc5 = evaluate()
 	end = time.time()
 
 	if acc1 != global_acc1:
 		diff1 = diff1 + 1
 
+	if acc5 != global_acc5:
+		diff5 = diff5 + 1
+
 	avg1 = avg1 + acc1
+	avg5 = avg5 + acc5
 	count = count + 1
 	test_avg = test_avg + (end - timer)
 
-	return acc1
+	return acc1, acc5
 
 # managing weights
-#model.summary()
+model.summary()
 
 stats_Global = h5py.File("stats.h5", "w")
 
@@ -156,6 +158,7 @@ for layer in model.layers:
 		shape = weights[x].shape
 		length = len(shape)
 		dataStore = np.empty(shape)
+		data5 = np.empty(shape)
 
 		if length == 0:
 			continue
@@ -165,7 +168,7 @@ for layer in model.layers:
 				st = weights[x][i]
 				weights[x][i] = 0
 				layer.set_weights(weights)
-				dataStore[i] = tester()
+				dataStore[i], data5[i] = tester()
 				weights[x][i] = st
 
 		if length == 2:
@@ -174,7 +177,7 @@ for layer in model.layers:
 					st = weights[x][i][y]
 					weights[x][i][y] = 0
 					layer.set_weights(weights)
-					dataStore[i][y] = tester()
+					dataStore[i][y], data5[i][y] = tester()
 					weights[x][i][y] = st
 
 
@@ -185,7 +188,7 @@ for layer in model.layers:
 						st = weights[x][i][y][j]
 						weights[x][i][y][j] = 0
 						layer.set_weights(weights)
-						dataStore[i][y][j] = tester()
+						dataStore[i][y][j], data5[i][y][j] = tester()
 						weights[x][i][y][j] = st
 
 		if length == 4:
@@ -196,7 +199,7 @@ for layer in model.layers:
 							st = weights[x][i][y][j][z]
 							weights[x][i][y][j][z] = 0
 							layer.set_weights(weights)
-							dataStore[i][y][j][x] = tester()
+							dataStore[i][y][j][x], data5[i][y][j][x] = tester()
 							weights[x][i][y][j][z] = st
 
 		if length > 4:
@@ -204,11 +207,22 @@ for layer in model.layers:
 			sys.exit()
 
 		stats.create_dataset(str(q), data=dataStore)
+		stats.create_dataset(str(q+.5), data=data5)
 		q = q + 1
 
 stats_Global.close()
+
+print("Global accuracy")
+print(global_acc1)
+print(global_acc5)
 
 print(count)
 print("AVG Accuracy1")
 print(avg1/count)
 print(diff1)
+
+
+print("AVG Accuracy5")
+print(avg5/count)
+print(diff5)
+

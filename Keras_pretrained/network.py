@@ -26,6 +26,7 @@ import pathlib
 import random
 import h5py
 
+test_length = 1000
 
 
 model = ResNet50(weights='imagenet')
@@ -83,7 +84,7 @@ for paths in all_image_paths:
 	input_image = np.expand_dims(numpy_image, axis=0) 
 	input_image = preprocess_input(input_image)
 	imgs.append(input_image[0])
-	if i >= 7500:
+	if i >= test_length:
 		break
 	i = i + 1
 
@@ -103,27 +104,62 @@ print(preds.argmax())
 print('Predicted:', decode_predictions(preds, top=3)[0])
 """
 
+# Label Matching From 
+# https://calebrob.com/ml/imagenet/ilsvrc2012/2018/10/22/imagenet-benchmarking.html
+# https://github.com/calebrob6/imagenet_validation
+meta = scipy.io.loadmat("../ILSVRC2012_devkit_t12/data/meta.mat")
+original_idx_to_synset = {}
+synset_to_name = {}
+
+for i in range(1000):
+    ilsvrc2012_id = int(meta["synsets"][i,0][0][0][0])
+    synset = meta["synsets"][i,0][1][0]
+    name = meta["synsets"][i,0][2][0]
+    original_idx_to_synset[ilsvrc2012_id] = synset
+    synset_to_name[synset] = name
+
+synset_to_keras_idx = {}
+keras_idx_to_name = {}
+f = open("../synset_words.txt","r")
+idx = 0
+for line in f:
+    parts = line.split(" ")
+    synset_to_keras_idx[parts[0]] = idx
+    keras_idx_to_name[idx] = " ".join(parts[1:])
+    idx += 1
+f.close()
+
+def convert_original_idx_to_keras_idx(idx):
+    return synset_to_keras_idx[original_idx_to_synset[idx]]
+
+f = open(label_text,"r")
+labels = f.read().strip().split("\n")
+labels = list(map(int, labels))
+labels = np.array([convert_original_idx_to_keras_idx(idx) for idx in labels])
+labels = to_categorical(labels, 1000)
+f.close()
+
+
 def top_k_accuracy(y_true, y_pred, k=1):
     argsorted_y = np.argsort(y_pred)[:,-k:]
-    return np.any(argsorted_y.T == y_true, axis=0).mean()
+    return np.any(argsorted_y.T == y_true.argmax(axis=1), axis=0).mean()
 
 
 def evaluate():
-	pred = model.predict(imgs, verbose = 1)
-	acc1L = top_k_accuracy(labels, pred)
+	pred = model.predict(imgs[:test_length], verbose = 1)
+	acc1L = top_k_accuracy(labels[:test_length], pred,1)
+	acc5L = top_k_accuracy(labels[:test_length], pred,5)
 	print(acc1L)
-	return acc1L
+	print(acc5L)
+	return acc1L,acc5L
 
+global_acc1, global_acc5 = evaluate()
 
-pred = model.predict(imgs, verbose = 1)
-argsorted_y = np.argsort(pred)[:,-1:]
-labels = argsorted_y.T
-
-
-# Tester
-global_acc1 = 1.0
 diff1 = 0
+diff5 = 0
 avg1 = 0.00
+avg5 = 0.00
+test_avg = 0.00
 count = 0
 
 def tester():
@@ -132,19 +168,27 @@ def tester():
 	global count
 	global diff1
 	global diff5
+	global test_avg
 
-	acc1 = evaluate()
+	timer = time.time()
+	acc1, acc5 = evaluate()
+	end = time.time()
 
 	if acc1 != global_acc1:
 		diff1 = diff1 + 1
 
-	avg1 = avg1 + acc1
-	count = count + 1
+	if acc5 != global_acc5:
+		diff5 = diff5 + 1
 
-	return acc1
+	avg1 = avg1 + acc1
+	avg5 = avg5 + acc5
+	count = count + 1
+	test_avg = test_avg + (end - timer)
+
+	return acc1, acc5
 
 # managing weights
-#model.summary()
+model.summary()
 
 stats_Global = h5py.File("stats.h5", "w")
 
@@ -166,6 +210,7 @@ for layer in model.layers:
 		shape = weights[x].shape
 		length = len(shape)
 		dataStore = np.empty(shape)
+		data5 = np.empty(shape)
 
 		if length == 0:
 			continue
@@ -175,7 +220,7 @@ for layer in model.layers:
 				st = weights[x][i]
 				weights[x][i] = 0
 				layer.set_weights(weights)
-				dataStore[i] = tester()
+				dataStore[i], data5[i] = tester()
 				weights[x][i] = st
 
 		if length == 2:
@@ -184,7 +229,7 @@ for layer in model.layers:
 					st = weights[x][i][y]
 					weights[x][i][y] = 0
 					layer.set_weights(weights)
-					dataStore[i][y] = tester()
+					dataStore[i][y], data5[i][y] = tester()
 					weights[x][i][y] = st
 
 
@@ -195,7 +240,7 @@ for layer in model.layers:
 						st = weights[x][i][y][j]
 						weights[x][i][y][j] = 0
 						layer.set_weights(weights)
-						dataStore[i][y][j] = tester()
+						dataStore[i][y][j], data5[i][y][j] = tester()
 						weights[x][i][y][j] = st
 
 		if length == 4:
@@ -206,7 +251,7 @@ for layer in model.layers:
 							st = weights[x][i][y][j][z]
 							weights[x][i][y][j][z] = 0
 							layer.set_weights(weights)
-							dataStore[i][y][j][x] = tester()
+							dataStore[i][y][j][x], data5[i][y][j][x] = tester()
 							weights[x][i][y][j][z] = st
 
 		if length > 4:
@@ -214,11 +259,22 @@ for layer in model.layers:
 			sys.exit()
 
 		stats.create_dataset(str(q), data=dataStore)
+		stats.create_dataset(str(q+.5), data=data5)
 		q = q + 1
 
 stats_Global.close()
+
+print("Global accuracy")
+print(global_acc1)
+print(global_acc5)
 
 print(count)
 print("AVG Accuracy1")
 print(avg1/count)
 print(diff1)
+
+
+print("AVG Accuracy5")
+print(avg5/count)
+print(diff5)
+
