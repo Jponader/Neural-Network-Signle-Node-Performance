@@ -88,29 +88,23 @@ model.save('model.h5')
 # modelNew = keras.models.load_model('model.h5')
 """
 imgs = X_test
-labels = y_test
+labels = y_test.argmax(axis=1)
+
+#-------------------------------------------------------------------------------#
 
 def top_k_accuracy(y_true, y_pred, k=1):
     argsorted_y = np.argsort(y_pred)[:,-k:]
-    return np.any(argsorted_y.T == y_true.argmax(axis=1), axis=0).mean()
+    return np.any(argsorted_y.T == y_true, axis=0).mean()
 
 
-def evaluate():
-	pred = model.predict(imgs[:test_length], verbose = 1)
-	acc1L = top_k_accuracy(labels[:test_length], pred,1)
-	acc5L = top_k_accuracy(labels[:test_length], pred,5)
-	print(acc1L)
-	print(acc5L)
-	return acc1L,acc5L
+def accuracy_diff(y_true, y_pred):
+	diff = 0
+	count = 0
+	for item in y_true:
+		diff = y_pred[count][item] - global_pred[count][item] + diff
+		count = count + 1
 
-global_acc1, global_acc5 = evaluate()
-
-diff1 = 0
-diff5 = 0
-avg1 = 0.00
-avg5 = 0.00
-test_avg = 0.00
-count = 0
+	return diff/count	
 
 def tester():
 	global avg1
@@ -118,11 +112,16 @@ def tester():
 	global count
 	global diff1
 	global diff5
-	global test_avg
+	global avgDiff
 
-	timer = time.time()
-	acc1, acc5 = evaluate()
-	end = time.time()
+	pred = model.predict(imgs[:test_length], verbose = 1)
+	acc1 = top_k_accuracy(labels[:test_length], pred,1)
+	acc5 = top_k_accuracy(labels[:test_length], pred,5)
+	accdiff = accuracy_diff(labels[:test_length], pred)
+	print(accdiff)
+	print(acc1)
+	print(acc5)
+	AddData( acc1, acc5, accdiff)
 
 	if acc1 != global_acc1:
 		diff1 = diff1 + 1
@@ -132,15 +131,74 @@ def tester():
 
 	avg1 = avg1 + acc1
 	avg5 = avg5 + acc5
+	avgDiff = avgDiff + accdiff
 	count = count + 1
-	test_avg = test_avg + (end - timer)
-
 	return acc1, acc5
+
+def AddData(acc1L,acc5L, avgDiff):
+	global dataStore
+	global data5
+	global accdiff
+	global rowcount
+
+	dataStore[rowcount] = acc1L
+	data5[rowcount] = acc5L
+	accdiff[rowcount] = avgDiff
+	rowcount = rowcount + 1
+
+
+
+def create(size):
+	global dataStore
+	global data5
+	global accdiff
+	global rowcount
+
+	dataStore = np.empty(size)
+	data5 = np.empty(size)
+	accdiff = np.empty(size)
+	rowcount = 0
+
+def store(shape):
+	global dataStore
+	global data5
+	global accdiff
+	global q
+
+
+	dataStore = dataStore.reshape(shape)
+	data5 = data5.reshape(shape)
+	accdiff = accdiff.reshape(shape)
+	stats.create_dataset(str(q), data=dataStore)
+	stats.create_dataset(str(q+.5), data=data5)
+	stats.create_dataset("accDiff" + str(q), data=accdiff)
+	q = q + 1
+
+
+
+#-------------------------------------------------------------------------------#
+
+
+global_pred = model.predict(imgs[:test_length], verbose = 1)
+global_acc1 = top_k_accuracy(labels[:test_length], global_pred,1)
+global_acc5 = top_k_accuracy(labels[:test_length], global_pred,5)
+
+diff1 = 0
+diff5 = 0
+avg1 = 0.00
+avg5 = 0.00
+count = 0
+avgDiff = 0.00
 
 # managing weights
 model.summary()
 
 stats_Global = h5py.File("stats.h5", "w")
+
+dataStore = np.empty(0)
+data5 = np.empty(0)
+accdiff = np.empty(0)
+rowcount = 0;
 
 q = 0
 for layer in model.layers:
@@ -152,15 +210,11 @@ for layer in model.layers:
 
 	for x in range(len(weights)):
 
-		if count == 100:
-			break
-
-
 		print("----------------BREAK----------------")
 		shape = weights[x].shape
+		size = weights[x].size
 		length = len(shape)
-		dataStore = np.empty(shape)
-		data5 = np.empty(shape)
+		create(size)
 
 		if length == 0:
 			continue
@@ -170,7 +224,7 @@ for layer in model.layers:
 				st = weights[x][i]
 				weights[x][i] = 0
 				layer.set_weights(weights)
-				dataStore[i], data5[i] = tester()
+				tester()
 				weights[x][i] = st
 
 		if length == 2:
@@ -179,7 +233,7 @@ for layer in model.layers:
 					st = weights[x][i][y]
 					weights[x][i][y] = 0
 					layer.set_weights(weights)
-					dataStore[i][y], data5[i][y] = tester()
+					tester()
 					weights[x][i][y] = st
 
 
@@ -190,7 +244,7 @@ for layer in model.layers:
 						st = weights[x][i][y][j]
 						weights[x][i][y][j] = 0
 						layer.set_weights(weights)
-						dataStore[i][y][j], data5[i][y][j] = tester()
+						tester()
 						weights[x][i][y][j] = st
 
 		if length == 4:
@@ -201,16 +255,14 @@ for layer in model.layers:
 							st = weights[x][i][y][j][z]
 							weights[x][i][y][j][z] = 0
 							layer.set_weights(weights)
-							dataStore[i][y][j][x], data5[i][y][j][x] = tester()
+							tester()
 							weights[x][i][y][j][z] = st
 
 		if length > 4:
 			print("Dimension > 4")
 			sys.exit()
 
-		stats.create_dataset(str(q), data=dataStore)
-		stats.create_dataset(str(q+.5), data=data5)
-		q = q + 1
+		store(shape)
 
 stats_Global.close()
 
@@ -223,8 +275,9 @@ print("AVG Accuracy1")
 print(avg1/count)
 print(diff1)
 
-
 print("AVG Accuracy5")
 print(avg5/count)
 print(diff5)
 
+print("AVG Diff")
+print(avgDiff/count)
