@@ -140,20 +140,16 @@ def AddData(acc1L,acc5L, avgDiff):
 	global data5
 	global accdiff
 	global rowcount
-
 	dataStore[rowcount] = acc1L
 	data5[rowcount] = acc5L
 	accdiff[rowcount] = avgDiff
 	rowcount = rowcount + 1
-
-
 
 def create(size):
 	global dataStore
 	global data5
 	global accdiff
 	global rowcount
-
 	dataStore = np.empty(size)
 	data5 = np.empty(size)
 	accdiff = np.empty(size)
@@ -164,8 +160,6 @@ def store(shape):
 	global data5
 	global accdiff
 	global q
-
-
 	dataStore = dataStore.reshape(shape)
 	data5 = data5.reshape(shape)
 	accdiff = accdiff.reshape(shape)
@@ -174,10 +168,7 @@ def store(shape):
 	stats.create_dataset("accDiff" + str(q), data=accdiff)
 	q = q + 1
 
-
-
 #-------------------------------------------------------------------------------#
-
 
 global_pred = model.predict(imgs[:test_length], verbose = 1)
 global_acc1 = top_k_accuracy(labels[:test_length], global_pred,1)
