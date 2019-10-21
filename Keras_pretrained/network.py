@@ -41,7 +41,7 @@ keras.backend.set_learning_phase(0)
 # model.load_weights()
 
 # Save Entire Model
-# model.save('model.h5')
+model.save('model.h5')
 # model = keras.models.load_model('model.h5')
 
 path_val = '../ImageNet/ILSVRC/Data/CLS-LOC/val'
