@@ -2,12 +2,53 @@ import numpy as np
 from scipy.signal import convolve
 
 
+	
+
+#Dense Matrix
+inputMat = np.array([[1,2,1],[3,2,4],[4,3,2]])
+weights = np.array([[2,1,-2],[4,5,-1],[3,-4,2]])
+
+output = np.matmul(inputMat, weights)
+
+
+solvedWeights = np.linalg.solve(inputMat,output)
+print(weights)
+print(weights.T)
+
+solvedInput = np.linalg.solve(weights.T, output)
+
+
+
+
+
+print("---Dense Matrix---")
+print(inputMat)
+print(weights)
+print("Solved Dense Output")
+print(output)
+print("Solved Dense Weights")
+print(solvedWeights)
+print("Solved Dense Input")
+print(solvedInput)
+
+
+# Convolution
+print("---Convolution---")
+inputMat = np.array([[1,2,3,4],[-1,2,-3,1],[2,1,-2,-3],[4,-2,1,-4]])
+filters= np.array([	[[1,2],[2,1]],
+					[[1,2],[1,1]],
+					[[2,3],[1,1]],
+					[[3,1],[1,3]] ])
+
+print(inputMat)
+print(filters[0])
+
 def Convolution(inputMat, filter):
 	inputlen = len(inputMat)
 	filterLen = len(filter)
 	#((inputSize - filterSize + 2padding)/stride )+ 1)
 	interstepSize = int(((inputlen - filterLen)/1)+1)
-	solution = np.zeros((interstepSize,interstepSize),dtype=np.int8)
+	solution = np.zeros((interstepSize,interstepSize))
 
 	for x in range(0,interstepSize):
 		for y in range(0,interstepSize):
@@ -17,109 +58,72 @@ def Convolution(inputMat, filter):
 			sub3= filter[1][1] * inputMat[x+1][y+1]
 			solution[x][y] = sub0 + sub1 + sub2 + sub3
 
-	return solution		
+	return solution	
 
+def ConAllFilters(inputMat, filters):
+	solution = []
 
+	for filter in filters:
+		solution.append(Convolution(inputMat, filter))
 
-# Some linear Algebra for working on paper
-inputMat = np.array([[1,2,2,1],[1,2,1,1],[2,3,1,1],[3,1,1,3]])
-intermediary = np.array([5,6,9,10])
+	solution = np.array(solution)
+	return solution
 
-solved = np.linalg.tensorsolve(inputMat,intermediary)
-print("---Testing---")
-print(solved)
-print(np.linalg.matrix_rank(inputMat))
-
-#Dense Matrix
-inputMat = np.array([[1,2,1],[3,2,4],[4,3,2]])
-intermediary = np.array([[2,1,-2],[4,5,-1],[3,-4,2]])
-
-solution = np.matmul(inputMat, intermediary)
-
-solved = np.linalg.solve(inputMat,solution)
-output = solved
-
-print("---Dense Matrix---")
-print(inputMat)
-print(intermediary)
-print("Solved Dense Output")
-print(solution)
-print("Solved Dense Intermediary")
-print(solved)
-
-# Convolution
-inputMat = np.array([[1,2,3,4],[-1,2,-3,1],[2,1,-2,-3],[4,-2,1,-4]])
-filters= np.array([	[[1,2],[2,1]],
-					[[1,2],[1,1]],
-					[[2,3],[1,1]],
-					[[3,1],[1,3]] ])
-
-inputlen = len(inputMat)
-filterLen = len(filters[0])
-solution = Convolution(inputMat, filters[0])
-solution2 = Convolution(inputMat, filters[1])
-size = len(solution)
-
-print("---Convolution---")
-print(inputMat)
-print(filters[0])
-
-print("Solved Convolution Output")
-print(solution)
 
 # Solving Intermediary Step
-print("Solved Convolution Intermediary")
+def ConWeightsSolver(inputMat, output):
+	solution = output.flatten()
+	filterLen = len(filters[0])
+	inputlen = len(inputMat)
+	size = len(output)
+	interstep = np.empty((size*size,filterLen*filterLen),dtype=np.int8)
+	count = 0
 
-solution = solution.flatten()
-solution2 = solution2.flatten()
-interstep = np.empty((size*size,filterLen*filterLen),dtype=np.int8)
-count = 0
+	for y in range(0,size):
+		for x in range(0,size):
+			for j in range(0,filterLen):
+				for i in range(0,filterLen):
+					if ((i == 0) and (j == 1)):
+						interstep[count][2] = inputMat[y+j][x+i]
+					elif((i == 1) and (j == 1)):
+						interstep[count][3] = inputMat[y+j][x+i]
+					else:
+						interstep[count][i+j]= inputMat[y+j][x+i]
+			count = count + 1
 
-for y in range(0,size):
-	for x in range(0,size):
-		for j in range(0,filterLen):
-			for i in range(0,filterLen):
-				if ((i == 0) and (j == 1)):
-					interstep[count][2] = inputMat[y+j][x+i]
-				elif((i == 1) and (j == 1)):
-					interstep[count][3] = inputMat[y+j][x+i]
-				else:
-					interstep[count][i+j]= inputMat[y+j][x+i]
-		count = count + 1
-
-solved = np.linalg.solve(interstep[:inputlen],solution[:inputlen])
-solved = solved.reshape((2,2))
-print(solved)
+	solved = np.linalg.solve(interstep[:inputlen],solution[:inputlen])
+	solved = solved.reshape((2,2))
+	return solved
 
 # Solving Input 
-print("Solved Convolution Input")
-
-def SimpleConInputSolver(inputMat,filters):
+def SimpleConInputSolver(solution,filters):
 	#stride size only 1
 
 	filterLen = len(filters[0])
 	filterVar = filterLen*filterLen
 	weightMat = np.empty((filterVar,filterVar),dtype=np.int8)
 	answerMat = np.empty((filterVar),dtype=np.int8)
-
-	solution = []
 	count = 0
 
+	if len(filters) < filterVar:
+		print("error: Not enough filters to Solve")
+		return
+
 	for filter in filters:
-		solution.append(Convolution(inputMat, filter))
+		if count == filterVar:
+			break
 		flat = filter.flatten()
 		for z in range(0, filterVar):
 			weightMat[count][z] = flat[z]
 		count = count + 1
 
-	solution = np.array(solution)
 	solLen = len(solution[0])
 	# inputSize = ((output -1)*stride) - 2padding + filtersize
 	inputlen = ((solLen - 1)*1) + filterLen
 	solved = np.zeros((inputlen,inputlen))
 
-	for x in range(0,solLen):
-		for y in range(0,solLen):
+	for x in range(0,solLen, 2):
+		for y in range(0,solLen, 2):
 			for z in range(0, filterVar):
 				answerMat[z] = solution[z][x][y]
 
@@ -131,9 +135,21 @@ def SimpleConInputSolver(inputMat,filters):
 					solved[x+i][y+j] = intermed[count]
 					count = count + 1
 
-	print(solved)
+	return solved
 
-SimpleConInputSolver(inputMat, filters)
+print("Solved Convolution Output")
+output = ConAllFilters(inputMat, filters)
+
+for outputs in output:
+	print(outputs)
+
+print("Solved Convolution Weights")
+filter0 = ConWeightsSolver(inputMat, output[0])
+print(filter0)
+
+print("Solved Convolution Input")
+hold = SimpleConInputSolver(output, filters)
+print(hold)
 
 
 
