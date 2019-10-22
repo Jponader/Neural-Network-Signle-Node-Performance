@@ -5,30 +5,36 @@ from scipy.signal import convolve
 	
 
 #Dense Matrix
+print("---Dense Matrix---")
 inputMat = np.array([[1,2,1],[3,2,4],[4,3,2]])
 weights = np.array([[2,1,-2],[4,5,-1],[3,-4,2]])
 
-output = np.matmul(inputMat, weights)
-
-
-solvedWeights = np.linalg.solve(inputMat,output)
-print(weights)
-print(weights.T)
-
-solvedInput = np.linalg.solve(weights.T, output)
-
-
-
-
-
-print("---Dense Matrix---")
 print(inputMat)
 print(weights)
+
+def solveDenseLayer (inputMat, weights):
+	output = np.matmul(inputMat, weights)
+	return output
+
+def denseWeightsSolver(inputMat, output):
+	solvedWeights = np.linalg.solve(inputMat,output)
+	return solvedWeights
+
+def denseInputSolver(weights, output):
+	solvedInput = np.linalg.solve(weights.T, output.T)
+	return solvedInput.T
+
+
 print("Solved Dense Output")
+output = solveDenseLayer (inputMat, weights)
 print(output)
+
 print("Solved Dense Weights")
+solvedWeights = denseWeightsSolver(inputMat, output)
 print(solvedWeights)
+
 print("Solved Dense Input")
+solvedInput = denseInputSolver(weights, output)
 print(solvedInput)
 
 
