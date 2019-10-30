@@ -50,7 +50,7 @@ def tester(result, name):
 	if("." in name):
 		global_count5 = global_count5 + 1
 		global_avg5 = global_avg5 + result
-		global_var5 = global_var5 + (result - expected_val5)
+		global_var5 = global_var5 + ((result - expected_val5) **2)
 
 		if result != expected_val5:
 			global_diff5 = global_diff5 + 1
@@ -61,7 +61,7 @@ def tester(result, name):
 	elif(name[0] != "a"):
 		global_count1 = global_count1 + 1
 		global_avg1 = global_avg1 + result
-		global_var1 = global_var1 + (result - expected_val1) ** 2
+		global_var1 = global_var1 + ((result - expected_val1) ** 2)
 
 		if result != expected_val1:
 			global_diff1 = global_diff1 + 1

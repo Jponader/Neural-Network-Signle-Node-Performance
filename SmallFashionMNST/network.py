@@ -173,6 +173,9 @@ global_pred = model.predict(imgs[:test_length], verbose = 1)
 global_acc1 = top_k_accuracy(labels[:test_length], global_pred,1)
 global_acc5 = top_k_accuracy(labels[:test_length], global_pred,5)
 
+print(global_acc1)
+print(global_acc5)
+
 diff1 = 0
 diff5 = 0
 avg1 = 0.00
