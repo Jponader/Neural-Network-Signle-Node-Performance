@@ -114,13 +114,10 @@ def tester():
 	global diff5
 	global avgDiff
 
-	pred = model.predict(imgs[:test_length], verbose = 1)
+	pred = model.predict(imgs[:test_length], verbose = 0, use_multiprocessing = True )
 	acc1 = top_k_accuracy(labels[:test_length], pred,1)
 	acc5 = top_k_accuracy(labels[:test_length], pred,5)
 	accdiff = accuracy_diff(labels[:test_length], pred)
-	print(accdiff)
-	print(acc1)
-	print(acc5)
 	AddData( acc1, acc5, accdiff)
 
 	if acc1 != global_acc1:
